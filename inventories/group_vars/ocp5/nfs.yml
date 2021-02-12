@@ -1,0 +1,5 @@
+---
+ocp_nfs_storage_classname: managed-nfs-storage
+ocp_nfs_provisioner_server: '192.168.22.140'
+ocp_nfs_provisioner_path: '/mnt/pool1/k8snfs/ocp5'
+ocp_nfs_provisioner_project: managed-nfs-storage

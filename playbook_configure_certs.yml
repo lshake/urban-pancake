@@ -1,0 +1,19 @@
+- name: setup ocp certs
+  hosts: all
+  gather_facts: false
+  module_defaults:
+    group/k8s:
+      state: 'present'
+      host: "{{ api_url | default(omit) }}"
+      api_key: "{{ api_key | default(omit) }}"
+      validate_certs: false
+
+  tasks:
+
+    - include_role:
+        name: ocp-api-cert
+      tags: certs
+
+    - include_role:
+        name: ocp-router-cert
+      tags: certs

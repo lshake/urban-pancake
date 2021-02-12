@@ -1,0 +1,42 @@
+# Compiled Python files
+*.pyc
+
+# Ansible retry files
+*.retry
+
+# Folder view configuration files
+.DS_Store
+Desktop.ini
+
+# Thumbnail cache files
+._*
+Thumbs.db
+
+# Files that might appear on external disks
+.Spotlight-V100
+.Trashes
+
+# Archives
+*.tar.gz
+*.tgz
+*.zip
+
+# # Roles and collections should be pulled from galaxy
+roles/*
+collections/*
+# Except for requirements files
+!roles/requirements*.yml
+!collections/requirements*.yml
+
+# Ansible config
+ansible.cfg
+
+# Don't upload the ssh keys or certs
+files/*id_rsa
+files/*.key
+files/*.crt
+files/*.pem
+
+# Don't include work and cache dirs
+work/
+cache/
