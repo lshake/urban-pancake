@@ -1,0 +1,33 @@
+---
+- name: set custom console text
+  k8s:
+    api_version: operator.openshift.io/v1
+    kind: Console
+    name: cluster
+    definition:
+      spec:
+        customization:
+          customProductName: "{{ ocp_login_banner_text }}"
+
+- name: create custom login page
+  k8s:
+    name: "login-template"
+    namespace: openshift-config
+    definition:
+      kind: Secret
+      type: Opaque
+      data:
+        'login.html': "{{ lookup('file', 'files/login.html', rstrip=False) | b64encode }}"
+
+
+- name: enable custom error message
+  k8s:
+    definition:
+      apiVersion: config.openshift.io/v1
+      kind: OAuth
+      metadata:
+        name: cluster
+      spec:
+        templates:
+          login:
+            name: login-template

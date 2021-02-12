@@ -1,0 +1,39 @@
+---
+- name: create the pvc for the registry
+  k8s:
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: 'image-registry-storage'
+        namespace: openshift-image-registry
+      spec:
+        accessModes:
+          - ReadWriteMany
+        storageClassName: "{{ ocp_nfs_storage_classname }}"
+        resources:
+          requests:
+            storage: 100Gi
+
+- name: update the registry
+  k8s:
+    definition:
+      apiVersion: imageregistry.operator.openshift.io/v1
+      kind: Config
+      metadata:
+        name: cluster
+      spec:
+        managementState: Managed
+        storage:
+          pvc:
+            claim: 'image-registry-storage'
+
+- name: enable image pruning
+  k8s:
+    definition:
+      apiVersion: imageregistry.operator.openshift.io/v1
+      kind: ImagePruner
+      metadata:
+        name: cluster
+      spec:
+        suspend: false

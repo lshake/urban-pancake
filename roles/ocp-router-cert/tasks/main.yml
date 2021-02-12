@@ -1,0 +1,24 @@
+---
+- name: create custom router certs secrets
+  k8s:
+    name: "customroutercert"
+    namespace: openshift-ingress
+    definition:
+      kind: Secret
+      type: kubernetes.io/tls
+      data:
+        'tls.crt': "{{ lookup('file', ocp_router_certs_file, rstrip=False) | b64encode }}"
+        'tls.key': "{{ lookup('file', ocp_router_key_file, rstrip=False) | b64encode }}"
+
+- name: enable custom router certs
+  k8s:
+    definition:
+      apiVersion: operator.openshift.io/v1
+      kind: IngressController
+      namespace: openshift-ingress-operator
+      metadata:
+        name: default
+        namespace: openshift-ingress-operator
+      spec:
+        defaultCertificate:
+          name: "customroutercert"

@@ -1,0 +1,5 @@
+---
+ocp_nfs_storage_classname: managed-nfs-storage
+ocp_nfs_provisioner_server: '10.1.1.100'
+ocp_nfs_provisioner_path: '/export/clustername'
+ocp_nfs_provisioner_project: managed-nfs-storage

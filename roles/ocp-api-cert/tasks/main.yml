@@ -1,0 +1,34 @@
+---
+# tasks file for ocp-api-cert
+
+- name: create custom api certs
+  k8s:
+    name: "api-custom-cert"
+    namespace: openshift-config
+    definition:
+      kind: Secret
+      type: kubernetes.io/tls
+      data:
+        'tls.crt': "{{ lookup('file', ocp_api_cert_file, rstrip=False) | b64encode }}"
+        'tls.key': "{{ lookup('file', ocp_api_key_file, rstrip=False) | b64encode }}"
+    validate_certs: false
+  tags:
+    - custom_api_certs
+
+- name: enable custom api certs
+  k8s:
+    definition:
+      apiVersion: config.openshift.io/v1
+      kind: APIServer
+      metadata:
+        name: cluster
+      spec:
+        servingCerts:
+          namedCertificates:
+            - names:
+              - "{{ ocp_api_fqdn }}"
+              servingCertificate:
+                name: "api-custom-cert"
+    validate_certs: false
+  tags:
+    - custom_api_certs

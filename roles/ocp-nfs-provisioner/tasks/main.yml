@@ -1,0 +1,75 @@
+---
+
+- name: Create nfs project
+  k8s:
+    definition:
+      - apiVersion: project.openshift.io/v1
+        kind: Project
+        metadata:
+          annotations:
+            openshift.io/description: "Provide nfs storage and a dynamic provisioner"
+            openshift.io/display-name: "NFS Subdir External Provisioner"
+          name: "{{ ocp_nfs_provisioner_project }}"
+    wait: true
+  tags:
+    - nfs_storage
+
+- name: Add stable chart repo
+  community.kubernetes.helm_repository:
+    name: nfs-subdir-external-provisioner
+    repo_url: "https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/"
+  tags:
+    - nfs_storage
+
+- name: Deploy latest nfs client provisioner
+  community.kubernetes.helm:
+    name: nfs-subdir-external-provisioner
+    chart_ref: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner
+    release_namespace: "{{ ocp_nfs_provisioner_project }}"
+    values:
+      nfs:
+        server: "{{ ocp_nfs_provisioner_server }}"
+        path: "{{ ocp_nfs_provisioner_path }}"
+      storageClass:
+        name: "{{ ocp_nfs_storage_classname }}"
+      podSecurityPolicy:
+        enabled: True
+  tags:
+    - nfs_storage
+
+- name: get the current list of scc's
+  set_fact:
+    scc_hostmount_anyuid: "{{ lookup('community.kubernetes.k8s',
+                                kind='SecurityContextConstraints',
+                                resource_name='hostmount-anyuid') }}"
+  tags:
+    - nfs_storage
+
+- name: debug the scc
+  debug:
+    var: scc_hostmount_anyuid
+
+- name: oc adm policy add-scc-to-user hostmount-anyuid -z nfs-subdir-external-provisioner
+  k8s:
+    definition:
+      kind: SecurityContextConstraints
+      apiVersion: security.openshift.io/v1
+      metadata:
+        name: hostmount-anyuid
+      users: "{{ scc_hostmount_anyuid.users + ['system:serviceaccount:nfsclient:nfs-subdir-external-provisioner'] }}"
+  when:
+    - "'system:serviceaccount:nfsclient:nfs-subdir-external-provisioner' not in scc_hostmount_anyuid.users"
+  tags:
+    - nfs_storage
+
+- name: set default storage class to be nfs-client
+  k8s:
+    definition:
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: "{{ ocp_nfs_storage_classname }}"
+        annotations:
+          storageclass.kubernetes.io/is-default-class: 'true'
+  tags:
+    - nfs_storage

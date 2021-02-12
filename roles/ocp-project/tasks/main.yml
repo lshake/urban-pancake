@@ -1,0 +1,26 @@
+---
+
+- name: Ensure project namespace
+  k8s:
+    state: "{{ state }}"
+    definition:
+      - apiVersion: project.openshift.io/v1
+        kind: Project
+        metadata:
+          annotations:
+            openshift.io/description: "{{ project_description }}"
+            openshift.io/display-name: "{{ project_display_name }}"
+          name: "{{ project_name }}"
+      - apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: compute-resources
+        spec:
+          hard:
+            pods: "4"
+            requests.cpu: "1"
+            requests.memory: 1Gi
+            requests.ephemeral-storage: 2Gi
+            limits.cpu: "2"
+            limits.memory: 2Gi
+            limits.ephemeral-storage: 4Gi

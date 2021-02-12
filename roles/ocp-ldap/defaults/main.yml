@@ -1,0 +1,13 @@
+---
+ocp_ldap_sync_namespace: openshift-cluster-ldapsync
+ocp_ldap_sync_job_service_account: ldap-group-syncer
+ocp_ldap_url: "ldaps://idm01.lab.shakey.org/cn=users,cn=accounts,dc=lab,dc=shakey,dc=org?uid??(|(memberOf=cn=openshift-users,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org)(memberOf=cn=openshift-admins,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org))"
+ocp_ldap_ca_cert: "files/ca_root_cert.pem"
+ocp_ldap_bind_dn: "uid=openshift,cn=sysaccounts,cn=etc,dc=lab,dc=shakey,dc=org"
+ocp_ldap_bind_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          66393631346633616532313234633263366338363863396466333734383238383830656136366365
+          3635313031383963636566663336653666373063623366630a643561633335656636373162346635
+          39663563376637383938633038623735633061346162346264303031383636643262376539613032
+          6538353165333530650a386434373431313562376565383532353161633065616661666631353431
+          38633832623935313434373532303332323333363430373636636230333266343937

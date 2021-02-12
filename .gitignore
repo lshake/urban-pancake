@@ -25,6 +25,7 @@ Thumbs.db
 roles/*
 collections/*
 # Except for requirements files
+!roles/ocp*
 !roles/requirements*.yml
 !collections/requirements*.yml
 

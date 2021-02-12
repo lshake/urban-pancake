@@ -1,0 +1,6 @@
+---
+# defaults file for ocp-project---
+state: present
+project_name: my-project
+project_description: My OpenShift environment for playing around.
+project_display_name: My OpenShift project

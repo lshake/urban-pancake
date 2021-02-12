@@ -1,0 +1,204 @@
+---
+
+ldap_group_sync_cron_job:
+
+  - kind: Namespace
+    apiVersion: "v1"
+    metadata:
+      name: "{{ ocp_ldap_sync_namespace }}"
+      labels:
+        name: "{{ ocp_ldap_sync_namespace }}"
+
+  - kind: "ConfigMap"
+    apiVersion: "v1"
+    metadata:
+      name: "ldap-config"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+    data:
+      ldap-group-sync.yaml: |
+        kind: "LDAPSyncConfig"
+        apiVersion: "v1"
+        url: "ldaps://{{ ocp_ldap_url | urlsplit('netloc') }}"
+        insecure: false
+        bindDN: "{{ ocp_ldap_bind_dn }}"
+        bindPassword:
+          file: "/etc/secrets/bind_password"
+        ca: /etc/config/ca.crt
+        groupUIDNameMapping:
+          "cn=openshift-admins,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org": openshift-admins
+        rfc2307:
+          groupsQuery:
+            baseDN: "cn=accounts,dc=lab,dc=shakey,dc=org"
+            scope: "sub"
+            derefAliases: "never"
+            filter: "(objectClass=groupOfNames)"
+            pageSize: 0
+          groupUIDAttribute: dn
+          groupNameAttributes: [ cn ]
+          groupMembershipAttributes: [ member ]
+          usersQuery:
+            baseDN: "{{ ocp_ldap_url | urlsplit('path') | regex_replace('^/','') }}"
+            scope: "sub"
+            derefAliases: "never"
+            pageSize: 0
+          userNameAttributes: [ uid ]
+          userUIDAttribute: dn
+          tolerateMemberNotFoundErrors: true
+          tolerateMemberOutOfScopeErrors: true
+      whitelist.txt: |
+        cn=openshift-admins,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org
+        cn=openshift-users,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org
+      ca.crt: "{{ lookup('file', ocp_ldap_ca_cert, rstrip=False) }}"
+
+  - kind: "Secret"
+    apiVersion: "v1"
+    metadata:
+      name: "ldap-bind-secret"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+    type: "Opaque"
+    data:
+      bind_password: "{{ ocp_ldap_bind_password | b64encode }}"
+
+  - kind: "Secret"
+    apiVersion: v1
+    metadata:
+      name: lshakesp-pull-secret
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+    data:
+      .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJxdWF5LnNoYWtleS5kZXYiOiB7CiAgICAgICJhdXRoIjogImJITm9ZV3RsYzNBNldVazBNMEZyUkV4T2VGRk5VREJuVERsamREQTVlVTV1TVd0QlpXMTBVR1IxV1VsYWRXUnpkRGwxZUdGRk4yMUdZM1U1VVZGbVkweEdOV1pPYzJabFFRPT0iLAogICAgICAiZW1haWwiOiAiIgogICAgfQogIH0KfQ==
+    type: kubernetes.io/dockerconfigjson
+
+  - kind: "CronJob"
+    apiVersion: "batch/v1beta1"
+    metadata:
+      name: "cronjob-ldap-group-sync"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+    spec:
+      schedule: "@hourly"
+      concurrencyPolicy: "Forbid"
+      successfulJobsHistoryLimit: 5
+      failedJobsHistoryLimit: 5
+      jobTemplate:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+                - name: "cronjob-ldap-group-sync"
+#                   image: "registry.redhat.io/openshift4/ose-cli"
+                  image: "quay.shakey.dev/lshakesp/osc-cli"
+                  command:
+                    - "/bin/bash"
+                    - "-c"
+                    - oc adm groups sync --sync-config=/etc/config/ldap-group-sync.yaml --confirm
+                      $([ -s /etc/config/whitelist.txt ] && echo --whitelist=/etc/config/whitelist.txt)
+                  volumeMounts:
+                    - mountPath: "/etc/config"
+                      name: "ldap-sync-volume"
+                    - mountPath: "/etc/secrets"
+                      name: "ldap-bind-password"
+              imagePullSecrets:
+                - name: lshakesp-pull-secret
+              volumes:
+                - name: "ldap-sync-volume"
+                  configMap:
+                    name: "ldap-config"
+                - name: "ldap-bind-password"
+                  secret:
+                    secretName: "ldap-bind-secret"
+              restartPolicy: "Never"
+              terminationGracePeriodSeconds: 30
+              activeDeadlineSeconds: 500
+              dnsPolicy: "ClusterFirst"
+              serviceAccountName: "{{ ocp_ldap_sync_job_service_account }}"
+              serviceAccount: "{{ ocp_ldap_sync_job_service_account }}"
+      startingDeadlineSeconds: 60
+
+  - kind: "ClusterRole"
+    apiVersion: "authorization.openshift.io/v1"
+    metadata:
+      name: "{{ ocp_ldap_sync_job_service_account }}"
+    rules:
+      - apiGroups:
+          - ""
+          - "user.openshift.io"
+        resources:
+          - "groups"
+        verbs:
+          - "get"
+          - "list"
+          - "create"
+          - "update"
+
+  - kind: "ClusterRoleBinding"
+    apiVersion: "authorization.openshift.io/v1"
+    groupNames: null
+    metadata:
+      name: "system:ldap-group-syncers"
+    roleRef:
+      kind: ClusterRole
+      name: "ldap-group-syncer"
+    subjects:
+      - kind: "ServiceAccount"
+        name: "{{ ocp_ldap_sync_job_service_account }}"
+    userNames:
+      - "system:serviceaccount:{{ ocp_ldap_sync_namespace }}:{{ ocp_ldap_sync_job_service_account }}"
+
+  - kind: "ServiceAccount"
+    apiVersion: "v1"
+    metadata:
+      name: "{{ ocp_ldap_sync_job_service_account }}"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+
+  - kind: "Job"
+    apiVersion: "batch/v1"
+    metadata:
+      name: "initial-ldap-group-sync"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+    spec:
+      concurrencyPolicy: "Forbid"
+      template:
+        spec:
+          containers:
+            - name: "cronjob-ldap-group-sync"
+              image: "quay.shakey.dev/lshakesp/osc-cli"
+#              image: "registry.redhat.io/openshift4/ose-cli"
+              command:
+                - "/bin/bash"
+                - "-c"
+                - oc adm groups sync --sync-config=/etc/config/ldap-group-sync.yaml --confirm
+                  $([ -s /etc/config/whitelist.txt ] && echo --whitelist=/etc/config/whitelist.txt)
+              volumeMounts:
+                - mountPath: "/etc/config"
+                  name: "ldap-sync-volume"
+                - mountPath: "/etc/secrets"
+                  name: "ldap-bind-password"
+          imagePullSecrets:
+            - name: lshakesp-pull-secret
+          volumes:
+            - name: "ldap-sync-volume"
+              configMap:
+                name: "ldap-config"
+            - name: "ldap-bind-password"
+              secret:
+                secretName: "ldap-bind-secret"
+          restartPolicy: "Never"
+          terminationGracePeriodSeconds: 30
+          activeDeadlineSeconds: 500
+          dnsPolicy: "ClusterFirst"
+          serviceAccountName: "{{ ocp_ldap_sync_job_service_account }}"
+          serviceAccount: "{{ ocp_ldap_sync_job_service_account }}"
+      backoffLimit: 4
+
+  - kind: ClusterRoleBinding
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: openshift-admins
+    subjects:
+      - kind: Group
+        apiGroup: rbac.authorization.k8s.io
+        name: openshift-admins
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: cluster-admin
