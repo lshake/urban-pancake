@@ -1,6 +1,7 @@
 ---
 - name: set custom console text
   k8s:
+    api_key: "{{ api_key }}"
     api_version: operator.openshift.io/v1
     kind: Console
     name: cluster
@@ -11,6 +12,7 @@
 
 - name: create custom login page
   k8s:
+    api_key: "{{ api_key }}"
     name: "login-template"
     namespace: openshift-config
     definition:
@@ -22,6 +24,7 @@
 
 - name: enable custom error message
   k8s:
+    api_key: "{{ api_key }}"
     definition:
       apiVersion: config.openshift.io/v1
       kind: OAuth

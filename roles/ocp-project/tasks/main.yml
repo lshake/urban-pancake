@@ -1,26 +1,71 @@
 ---
-
 - name: Ensure project namespace
   k8s:
-    state: "{{ state }}"
+    namespace: "{{ ocp_project.name }}"
+    state: "{{ ocp_project.state }}"
     definition:
       - apiVersion: project.openshift.io/v1
         kind: Project
         metadata:
           annotations:
-            openshift.io/description: "{{ project_description }}"
-            openshift.io/display-name: "{{ project_display_name }}"
-          name: "{{ project_name }}"
+            openshift.io/description: "{{ ocp_project.description }}"
+            openshift.io/display-name: "{{ ocp_project.display_name }}"
+          name: "{{ ocp_project.name }}"
+
+- name: Ensure simple quota
+  k8s:
+    namespace: "{{ ocp_project.name }}"
+    state: "{{ ocp_project.state }}"
+    definition:
       - apiVersion: v1
         kind: ResourceQuota
         metadata:
           name: compute-resources
         spec:
           hard:
-            pods: "4"
-            requests.cpu: "1"
-            requests.memory: 1Gi
-            requests.ephemeral-storage: 2Gi
-            limits.cpu: "2"
-            limits.memory: 2Gi
-            limits.ephemeral-storage: 4Gi
+            pods: "{{ ocp_project.qutoa_pods | default(ocp_project_default_quota_pods) }}"
+            requests.cpu: "{{ ocp_project.qutoa_requests_cpu | default(ocp_project_default_quota_requests_cpu) }}"
+            requests.memory: "{{ ocp_project.qutoa_requests_memory | default(ocp_project_default_quota_requests_memory) }}"
+            requests.ephemeral-storage: "{{ ocp_project.qutoa_requests_ephemeral_storage | default(ocp_project_default_quota_requests_ephemeral_storage) }}"
+            limits.cpu: "{{ ocp_project.qutoa_limits_cpu | default(ocp_project_default_quota_limits_cpu) }}"
+            limits.memory: "{{ ocp_project.qutoa_limits_memory | default(ocp_project_default_quota_limits_memory) }}"
+            limits.ephemeral-storage: "{{ ocp_project.qutoa_limits_ephemeral_storage | default(ocp_project_default_quota_limits_ephemeral_storage) }}"
+  when:
+    - ocp_project.quota_advanced is not defined
+
+- name: Ensure advanced quota
+  k8s:
+    namespace: "{{ ocp_project.name }}"
+    state: "{{ ocp_project.state }}"
+    definition:
+      - apiVersion: v1
+        kind: ResourceQuota
+        metadata:
+          name: compute-resources
+        spec: |
+          "{{ ocp_project.quota_advanced }}"
+  when:
+    - ocp_project.quota_advanced is defined
+
+- name: Bind edit roles
+  k8s:
+    state: present
+    api_version: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    name: "{{ ocp_project.name }}-{{ item.cluster_role }}-crb"
+    namespace: "{{ ocp_project.name }}"
+    merge_type:
+      - strategic-merge
+      - merge
+    definition:
+      metadata:
+        annotations:
+          rbac.authorization.kubernetes.io/autoupdate: "true"
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: "{{ item.cluster_role }}"
+      subjects:
+        - kind: Group
+          name: "{{ item.group }}"
+  loop: "{{ ocp_project.roles }}"

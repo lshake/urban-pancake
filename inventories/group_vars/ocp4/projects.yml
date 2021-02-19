@@ -1,0 +1,57 @@
+---
+ocp_projects:
+  - name: projecta
+    state: present
+    description: OpenShift Project A for Awesome.
+    display_name: OpenShift Project A
+    roles:
+      - group: 'openshift-projecta-admins'
+        cluster_role: admin
+      - group: 'openshift-projecta-devs'
+        cluster_role: edit
+      - group: 'openshift-projecta-viewers'
+        cluster_role: view
+    qutoa_pods: 3
+    qutoa_requests_cpu: 2
+    qutoa_requests_memory: 4Gi
+    qutoa_limits_cpu: 2
+    qutoa_limits_memory: 4Gi
+  - name: projectb
+    state: present
+    description: OpenShift Project B for Beautiful.
+    display_name: OpenShift Project B
+    roles:
+      - group: 'openshift-projectb-admins'
+        cluster_role: admin
+      - group: 'openshift-projectb-devs'
+        cluster_role: edit
+      - group: 'openshift-projectb-viewers'
+        cluster_role: view
+#     quota_advanced: |
+#       hard:
+#         pods: 1
+#         requests.cpu: 4
+#         requests.memory 8Gi
+#         limits.cpu: 8
+#         limits.memory: 8Gi
+#         persistentvolumeclaims: 10
+#         services: 2
+  - name: projectc
+    state: present
+    description: OpenShift Project C for Crufty.
+    display_name: OpenShift Project C
+    roles:
+      - group: 'openshift-projectc-admins'
+        cluster_role: admin
+      - group: 'openshift-projectc-devs'
+        cluster_role: edit
+      - group: 'openshift-projectc-viewers'
+        cluster_role: view
+
+ocp_project_default_quota_pods: 4
+ocp_project_default_quota_requests_cpu: 1
+ocp_project_default_quota_requests_memory: 1Gi
+ocp_project_default_quota_requests_ephemeral_storage: 2Gi
+ocp_project_default_quota_limits_cpu: 2
+ocp_project_default_quota_limits_memory: 2Gi
+ocp_project_default_quota_limits_ephemeral_storage: 4Gi

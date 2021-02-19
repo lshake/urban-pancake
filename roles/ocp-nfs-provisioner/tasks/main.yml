@@ -2,6 +2,7 @@
 
 - name: Create nfs project
   k8s:
+    api_key: "{{ api_key }}"
     definition:
       - apiVersion: project.openshift.io/v1
         kind: Project
@@ -34,6 +35,9 @@
         name: "{{ ocp_nfs_storage_classname }}"
       podSecurityPolicy:
         enabled: True
+  environment:
+    HELM_KUBECAFILE: "{{ ocp_api_root_cert_file }}"
+    K8S_AUTH_SSL_CA_CERT: "{{ ocp_api_root_cert_file }}"
   tags:
     - nfs_storage
 
@@ -41,7 +45,8 @@
   set_fact:
     scc_hostmount_anyuid: "{{ lookup('community.kubernetes.k8s',
                                 kind='SecurityContextConstraints',
-                                resource_name='hostmount-anyuid') }}"
+                                resource_name='hostmount-anyuid',
+                                ca_cert=ocp_api_root_cert_file) }}"
   tags:
     - nfs_storage
 
@@ -51,19 +56,21 @@
 
 - name: oc adm policy add-scc-to-user hostmount-anyuid -z nfs-subdir-external-provisioner
   k8s:
+    api_key: "{{ api_key }}"
     definition:
       kind: SecurityContextConstraints
       apiVersion: security.openshift.io/v1
       metadata:
         name: hostmount-anyuid
-      users: "{{ scc_hostmount_anyuid.users + ['system:serviceaccount:nfsclient:nfs-subdir-external-provisioner'] }}"
+      users: "{{ scc_hostmount_anyuid.users + ['system:serviceaccount:' + ocp_nfs_provisioner_project + ':nfs-subdir-external-provisioner'] }}"
   when:
-    - "'system:serviceaccount:nfsclient:nfs-subdir-external-provisioner' not in scc_hostmount_anyuid.users"
+    - "'system:serviceaccount:' + ocp_nfs_provisioner_project + ':nfs-subdir-external-provisioner' not in scc_hostmount_anyuid.users"
   tags:
     - nfs_storage
 
 - name: set default storage class to be nfs-client
   k8s:
+    api_key: "{{ api_key }}"
     definition:
       kind: StorageClass
       apiVersion: storage.k8s.io/v1

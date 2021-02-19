@@ -1,4 +1,4 @@
-- name: setup ocp console setting
+- name: setup ocp alert destination
   hosts: all
   gather_facts: false
   module_defaults:
@@ -26,9 +26,9 @@
           set_fact:
             api_key: "{{ ocp_auth_results.openshift_auth.api_key }}"
 
-        - name: include the ocp-console role
+        - name: run the configure alert role
           include_role:
-            name: ocp-console
+            name: ocp-alert-dest
 
       always:
 

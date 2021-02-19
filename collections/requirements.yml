@@ -2,4 +2,8 @@
 collections:
   - name: community.kubernetes
     source: https://galaxy.ansible.com
+    version: 1.1.1
+  - name: community.okd
+    source: https://galaxy.ansible.com
+    version: 1.0.1
 

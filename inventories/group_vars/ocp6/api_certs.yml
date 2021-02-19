@@ -1,0 +1,7 @@
+---
+ocp_api_root_cert_file: files/ca_root_cert.pem
+ocp_api_cert_file: files/api.ocp6.lab.shakey.org.crt
+ocp_api_key_file: files/api.ocp6.lab.shakey.org.key
+ocp_router_certs_file: files/apps.ocp6.lab.shakey.org.crt
+ocp_router_key_file: files/apps.ocp6.lab.shakey.org.key
+ocp_api_fqdn: api.ocp6.lab.shakey.org

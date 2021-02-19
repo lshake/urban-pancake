@@ -46,8 +46,7 @@ ldap_group_sync_cron_job:
           tolerateMemberNotFoundErrors: true
           tolerateMemberOutOfScopeErrors: true
       whitelist.txt: |
-        cn=openshift-admins,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org
-        cn=openshift-users,cn=groups,cn=accounts,dc=lab,dc=shakey,dc=org
+        {{ ocp_ldap_whitelist }}
       ca.crt: "{{ lookup('file', ocp_ldap_ca_cert, rstrip=False) }}"
 
   - kind: "Secret"
@@ -65,7 +64,7 @@ ldap_group_sync_cron_job:
       name: lshakesp-pull-secret
       namespace: "{{ ocp_ldap_sync_namespace }}"
     data:
-      .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJxdWF5LnNoYWtleS5kZXYiOiB7CiAgICAgICJhdXRoIjogImJITm9ZV3RsYzNBNldVazBNMEZyUkV4T2VGRk5VREJuVERsamREQTVlVTV1TVd0QlpXMTBVR1IxV1VsYWRXUnpkRGwxZUdGRk4yMUdZM1U1VVZGbVkweEdOV1pPYzJabFFRPT0iLAogICAgICAiZW1haWwiOiAiIgogICAgfQogIH0KfQ==
+      .dockerconfigjson: "{{ ocp_ldap_image_pull_secret }}"
     type: kubernetes.io/dockerconfigjson
 
   - kind: "CronJob"
@@ -130,6 +129,12 @@ ldap_group_sync_cron_job:
           - "create"
           - "update"
 
+  - kind: "ServiceAccount"
+    apiVersion: "v1"
+    metadata:
+      name: "{{ ocp_ldap_sync_job_service_account }}"
+      namespace: "{{ ocp_ldap_sync_namespace }}"
+
   - kind: "ClusterRoleBinding"
     apiVersion: "authorization.openshift.io/v1"
     groupNames: null
@@ -144,12 +149,6 @@ ldap_group_sync_cron_job:
     userNames:
       - "system:serviceaccount:{{ ocp_ldap_sync_namespace }}:{{ ocp_ldap_sync_job_service_account }}"
 
-  - kind: "ServiceAccount"
-    apiVersion: "v1"
-    metadata:
-      name: "{{ ocp_ldap_sync_job_service_account }}"
-      namespace: "{{ ocp_ldap_sync_namespace }}"
-
   - kind: "Job"
     apiVersion: "batch/v1"
     metadata:
@@ -157,6 +156,7 @@ ldap_group_sync_cron_job:
       namespace: "{{ ocp_ldap_sync_namespace }}"
     spec:
       concurrencyPolicy: "Forbid"
+#      ttlSecondsAfterFinished: 100
       template:
         spec:
           containers:

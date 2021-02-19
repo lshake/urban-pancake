@@ -1,6 +1,22 @@
 ---
-# defaults file for ocp-project---
-state: present
-project_name: my-project
-project_description: My OpenShift environment for playing around.
-project_display_name: My OpenShift project
+# defaults file for ocp-project
+ocp_project:
+  name: my-project
+  state: present
+  description: My OpenShift environment for playing around.
+  display_name: My OpenShift project
+  roles:
+    - group: ocp_project_admins
+      cluster_role: admin
+    - group: ocp_project_edit
+      cluster_role: edit
+    - group: ocp_project_view
+      cluster_role: view
+
+ocp_project_default_quota_pods: 4
+ocp_project_default_quota_requests_cpu: 1
+ocp_project_default_quota_requests_memory: 1Gi
+ocp_project_default_quota_requests_ephemeral_storage: 2Gi
+ocp_project_default_quota_limits_cpu: 2
+ocp_project_default_quota_limits_memory: 2Gi
+ocp_project_default_quota_limits_ephemeral_storage: 4Gi

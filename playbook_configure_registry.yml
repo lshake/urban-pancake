@@ -4,12 +4,40 @@
   module_defaults:
     group/k8s:
       state: 'present'
-      host: "{{ api_url }}"
-      api_key: "{{ api_key }}"
-      validate_certs: "{{ validate_certs | default('true') }}"
+      host: "{{ ocp_cluster_api_url }}"
+      validate_certs: "{{ ocp_api_validate_certs | default('true') }}"
       ca_cert: "{{ ocp_api_root_cert_file | default('omit') }}"
 
   tasks:
 
-    - include_role:
-        name: ocp-registry
+    - name: get the API key and run roles
+      block:
+
+        - name: log in and obtain the api token
+          community.okd.openshift_auth:
+            host: "{{ ocp_cluster_api_url }}"
+            username: "{{ ocp_cluster_admin_username }}"
+            password: "{{ ocp_cluster_admin_password }}"
+            validate_certs: "{{ ocp_api_validate_certs | default('true') }}"
+            ca_cert: "{{ ocp_api_root_cert_file | default('omit') }}"
+          register: ocp_auth_results
+
+        - name: set the api token as a convient var for use in roles
+          set_fact:
+            api_key: "{{ ocp_auth_results.openshift_auth.api_key }}"
+
+        - name: include the registry role
+          include_role:
+            name: ocp-registry
+
+      always:
+
+        - name: If login succeeded, try to log out (revoke access token)
+          community.okd.openshift_auth:
+            host: "{{ ocp_cluster_api_url }}"
+            api_key: "{{ ocp_auth_results.openshift_auth.api_key }}"
+            state: absent
+            validate_certs: "{{ ocp_api_validate_certs | default('true') }}"
+            ca_cert: "{{ ocp_api_root_cert_file | default('omit') }}"
+          when: ocp_auth_results.openshift_auth.api_key is defined
+
